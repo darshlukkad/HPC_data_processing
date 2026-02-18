@@ -1,0 +1,17 @@
+# Build artifacts
+build/
+
+# Large datasets / test data (do not commit)
+dataset/
+
+# OS/editor junk
+.DS_Store
+*.swp
+*.swo
+*.tmp
+
+# Office temporary files
+~$*.docx
+
+# Jupyter
+.ipynb_checkpoints/
