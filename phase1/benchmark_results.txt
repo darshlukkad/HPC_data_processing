@@ -1,0 +1,67 @@
+Phase 1 Benchmark — 10 runs
+Binary : ../build/phase1/phase1
+Dataset: ../dataset/nyc_311_2020_2026.csv
+Date   : Wed Mar  4 19:20:14 PST 2026
+----------------------------------------
+
+=== Run 1 ===
+[load]                        20129233 results     48283.55 ms
+[searchByZip]                  3878133 results      2130.06 ms
+[searchByDate]                 3224721 results      1387.77 ms
+[searchByBoundingBox]          8043002 results      1380.66 ms
+
+=== Run 2 ===
+[load]                        20129233 results     48148.22 ms
+[searchByZip]                  3878133 results      1452.32 ms
+[searchByDate]                 3224721 results      1362.31 ms
+[searchByBoundingBox]          8043002 results      1338.12 ms
+
+=== Run 3 ===
+[load]                        20129233 results     48915.34 ms
+[searchByZip]                  3878133 results      1274.85 ms
+[searchByDate]                 3224721 results      1482.58 ms
+[searchByBoundingBox]          8043002 results      1448.25 ms
+
+=== Run 4 ===
+[load]                        20129233 results     47640.67 ms
+[searchByZip]                  3878133 results      1264.03 ms
+[searchByDate]                 3224721 results      1306.53 ms
+[searchByBoundingBox]          8043002 results      1395.68 ms
+
+=== Run 5 ===
+[load]                        20129233 results     47327.03 ms
+[searchByZip]                  3878133 results      1250.46 ms
+[searchByDate]                 3224721 results      1428.56 ms
+[searchByBoundingBox]          8043002 results      1360.82 ms
+
+=== Run 6 ===
+[load]                        20129233 results     48961.22 ms
+[searchByZip]                  3878133 results      2126.72 ms
+[searchByDate]                 3224721 results      2902.13 ms
+[searchByBoundingBox]          8043002 results      1590.57 ms
+
+=== Run 7 ===
+[load]                        20129233 results     48647.98 ms
+[searchByZip]                  3878133 results      1737.23 ms
+[searchByDate]                 3224721 results      1616.87 ms
+[searchByBoundingBox]          8043002 results      1591.61 ms
+
+=== Run 8 ===
+[load]                        20129233 results     48250.99 ms
+[searchByZip]                  3878133 results      1263.84 ms
+[searchByDate]                 3224721 results      1434.68 ms
+[searchByBoundingBox]          8043002 results      1397.09 ms
+
+=== Run 9 ===
+[load]                        20129233 results     47344.84 ms
+[searchByZip]                  3878133 results      1209.56 ms
+[searchByDate]                 3224721 results      1221.07 ms
+[searchByBoundingBox]          8043002 results      1293.91 ms
+
+=== Run 10 ===
+[load]                        20129233 results     47422.75 ms
+[searchByZip]                  3878133 results      1415.50 ms
+[searchByDate]                 3224721 results      1378.21 ms
+[searchByBoundingBox]          8043002 results      1330.52 ms
+
+========================================
