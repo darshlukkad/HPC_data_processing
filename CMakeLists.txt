@@ -6,3 +6,4 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(common)
 add_subdirectory(phase1)
+add_subdirectory(phase2)

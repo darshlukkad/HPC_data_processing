@@ -1,5 +1,6 @@
 #include "Benchmark.hpp"
 #include <chrono>
+#include <iostream>
 
 BenchmarkResult Benchmark::measureLoad(DataStore& ds, const std::string& path) {
     auto t0 = std::chrono::steady_clock::now();
@@ -16,6 +17,10 @@ BenchmarkResult Benchmark::measureSearchByZip(const DataStore& ds,
     auto result = ds.searchByZip(zip_min, zip_max);
     auto t1 = std::chrono::steady_clock::now();
 
+    //std::cout << "  first record:\n";
+    //if (!result.empty()) ds.printRecord(result[0], std::cout);
+   // else std::cout << "    none\n";
+
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return {"searchByZip", ms, result.size()};
 }
@@ -25,6 +30,10 @@ BenchmarkResult Benchmark::measureSearchByDate(const DataStore& ds,
     auto t0 = std::chrono::steady_clock::now();
     auto result = ds.searchByDate(from, to);
     auto t1 = std::chrono::steady_clock::now();
+
+    //std::cout << "  first record:\n";
+    //if (!result.empty()) ds.printRecord(result[0], std::cout);
+   // else std::cout << "    none\n";
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return {"searchByDate", ms, result.size()};
@@ -36,6 +45,10 @@ BenchmarkResult Benchmark::measureSearchByBoundingBox(const DataStore& ds,
     auto t0 = std::chrono::steady_clock::now();
     auto result = ds.searchByBoundingBox(lat_min, lat_max, lon_min, lon_max);
     auto t1 = std::chrono::steady_clock::now();
+
+    //std::cout << "  first record:\n";
+    //if (!result.empty()) ds.printRecord(result[0], std::cout);
+   // else std::cout << "    none\n";
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return {"searchByBoundingBox", ms, result.size()};

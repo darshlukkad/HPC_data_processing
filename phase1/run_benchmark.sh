@@ -17,14 +17,13 @@ for i in $(seq 1 $RUNS); do
     "$BINARY" "$DATASET"              | tee -a "$LOG"
 done
 
-echo ""                                          | tee -a "$LOG"
-echo "========================================"  | tee -a "$LOG"
-echo "Summary (ms) — parsed from $LOG"
-echo ""
+echo ""                                                        | tee -a "$LOG"
+echo "========================================"              | tee -a "$LOG"
+echo "Summary (ms)"                                         | tee -a "$LOG"
+echo ""                                                        | tee -a "$LOG"
 
 for op in "load" "searchByZip" "searchByDate" "searchByBoundingBox"; do
-    echo "--- $op ---"
-    grep "\[$op\]" "$LOG" | awk '{print $(NF-1)}' | awk '
+    grep "\[$op\]" "$LOG" | awk '{print $(NF-1)}' | awk -v op="$op" '
     BEGIN { sum=0; min=1e18; max=0; n=0 }
     {
         val = $1+0
@@ -34,6 +33,6 @@ for op in "load" "searchByZip" "searchByDate" "searchByBoundingBox"; do
     }
     END {
         avg = sum/n
-        printf "  runs=%d  avg=%.2f ms  min=%.2f ms  max=%.2f ms\n", n, avg, min, max
-    }'
+        printf "--- %-20s  runs=%d  avg=%10.2f ms  min=%10.2f ms  max=%10.2f ms\n", op, n, avg, min, max
+    }' | tee -a "$LOG"
 done

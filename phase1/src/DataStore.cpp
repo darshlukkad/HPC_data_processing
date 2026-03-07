@@ -3,11 +3,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <ctime>
 
 static const int MAX_FIELDS = 50;
+static const uint32_t RES_POOL_BYTES = 3200u * 1024u * 1024u;
 static const uint32_t POOL_BYTES = 3500u * 1024u * 1024u;  // 3.5 GB, fits in uint32_t
 
-DataStore::DataStore(): pool_(POOL_BYTES) {}
+DataStore::DataStore(): pool_(POOL_BYTES), res_pool_(RES_POOL_BYTES) {}
 
 
 static uint32_t parseUint32(std::string_view sv) {
@@ -92,7 +94,7 @@ ServiceRequest DataStore::parseRow(std::string_view* f, int n) {
     // 5=Problem, 6=Problem Detail, 7=Additional Details, 8=Location Type,
     // 9=Incident Zip, 10=Incident Address, 11=Street Name, 12=Cross Street 1,
     // 13=Cross Street 2, 14=Intersection Street 1, 15=Intersection Street 2,
-    // 16=Address Type(skip), 17=City, 18=Landmark, 19=Facility Type, 20=Status,
+    // 16=Address Type, 17=City, 18=Landmark, 19=Facility Type, 20=Status,
     // 21=Due Date, 22=Resolution Description, 23=Resolution Action Updated Date,
     // 24=Community Board, 25=Council District, 26=Police Precinct, 27=BBL,
     // 28=Borough, 29=X Coordinate, 30=Y Coordinate, 31=Open Data Channel Type,
@@ -117,14 +119,18 @@ ServiceRequest DataStore::parseRow(std::string_view* f, int n) {
     r.location.cross_street_2    = storeStr(13);
     r.location.intersection_1    = storeStr(14);
     r.location.intersection_2    = storeStr(15);
-    // field(16) = Address Type — skip
+    r.location.address_type      = address_type_reg_.encode(field(16));
     r.location.city              = storeStr(17);
     r.location.landmark          = storeStr(18);
     r.service.facility_type      = storeStr(19);
     r.service.status             = status_reg_.encode(field(20));
     r.time.due                   = parseDateField(field(21));
-    // resolution_desc (col 22) averages 154 chars x 20M rows = ~3GB — skip, not needed for range queries
-    // r.service.resolution_desc = storeStr(22);
+    {
+    auto sv = field(22);
+    if (!sv.empty())
+        r.service.resolution_desc = res_pool_.store(sv.data(), (uint16_t)sv.size());
+    }
+
     r.time.resolution            = parseDateField(field(23));
     r.admin.community_board      = (uint16_t)parseUint32(field(24));
     r.admin.council_district     = (uint16_t)parseUint32(field(25));
@@ -148,6 +154,71 @@ ServiceRequest DataStore::parseRow(std::string_view* f, int n) {
     r.location.location_point    = storeStr(43);
 
     return r;
+}
+
+void DataStore::printRecord(const ServiceRequest* r, std::ostream& os) const {
+    auto gs = [&](StringRef ref) -> std::string_view {
+        if (ref.length == 0) return "";
+        return {pool_.get(ref), ref.length};
+    };
+    auto gr = [&](StringRef ref) -> std::string_view {
+        if (ref.length == 0) return "";
+        return {res_pool_.get(ref), ref.length};
+    };
+    auto fmtTime = [](uint32_t epoch) -> std::string {
+        if (epoch == 0) return "N/A";
+        time_t t = (time_t)epoch;
+        char buf[32];
+        struct tm tm{};
+        gmtime_r(&t, &tm);
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+        return buf;
+    };
+
+    os << "  unique_key:         " << r->unique_key                                         << "\n"
+       << "  created:            " << fmtTime(r->time.created)                              << "\n"
+       << "  closed:             " << fmtTime(r->time.closed)                               << "\n"
+       << "  due:                " << fmtTime(r->time.due)                                  << "\n"
+       << "  resolution_date:    " << fmtTime(r->time.resolution)                           << "\n"
+       << "  agency:             " << agency_reg_.decode(r->service.agency)                 << "\n"
+       << "  agency_name:        " << gs(r->service.agency_name)                            << "\n"
+       << "  problem:            " << problem_reg_.decode(r->service.problem)               << "\n"
+       << "  problem_detail:     " << problem_detail_reg_.decode(r->service.problem_detail) << "\n"
+       << "  additional_details: " << gs(r->service.additional_details)                     << "\n"
+       << "  location_type:      " << location_type_reg_.decode(r->service.location_type)   << "\n"
+       << "  status:             " << status_reg_.decode(r->service.status)                 << "\n"
+       << "  facility_type:      " << gs(r->service.facility_type)                          << "\n"
+       << "  resolution_desc:    " << gr(r->service.resolution_desc)                        << "\n"
+       << "  zip:                " << r->location.zip                                       << "\n"
+       << "  address:            " << gs(r->location.address)                               << "\n"
+       << "  street_name:        " << gs(r->location.street_name)                           << "\n"
+       << "  cross_street_1:     " << gs(r->location.cross_street_1)                        << "\n"
+       << "  cross_street_2:     " << gs(r->location.cross_street_2)                        << "\n"
+       << "  intersection_1:     " << gs(r->location.intersection_1)                        << "\n"
+       << "  intersection_2:     " << gs(r->location.intersection_2)                        << "\n"
+       << "  address_type:       " << address_type_reg_.decode(r->location.address_type)    << "\n"
+       << "  city:               " << gs(r->location.city)                                  << "\n"
+       << "  landmark:           " << gs(r->location.landmark)                              << "\n"
+       << "  borough:            " << borough_reg_.decode(r->location.borough)              << "\n"
+       << "  latitude:           " << r->location.latitude                                  << "\n"
+       << "  longitude:          " << r->location.longitude                                 << "\n"
+       << "  x_coord:            " << r->location.x_coord                                   << "\n"
+       << "  y_coord:            " << r->location.y_coord                                   << "\n"
+       << "  location_point:     " << gs(r->location.location_point)                        << "\n"
+       << "  community_board:    " << r->admin.community_board                              << "\n"
+       << "  council_district:   " << r->admin.council_district                             << "\n"
+       << "  police_precinct:    " << r->admin.police_precinct                              << "\n"
+       << "  bbl:                " << r->admin.bbl                                          << "\n"
+       << "  channel_type:       " << channel_type_reg_.decode(r->admin.channel_type)       << "\n"
+       << "  park_facility:      " << gs(r->admin.park_facility)                            << "\n"
+       << "  park_borough:       " << park_borough_reg_.decode(r->admin.park_borough)       << "\n"
+       << "  vehicle_type:       " << gs(r->misc.vehicle_type)                              << "\n"
+       << "  taxi_borough:       " << gs(r->misc.taxi_borough)                              << "\n"
+       << "  taxi_pickup:        " << gs(r->misc.taxi_pickup)                               << "\n"
+       << "  bridge_name:        " << gs(r->misc.bridge_name)                               << "\n"
+       << "  bridge_direction:   " << gs(r->misc.bridge_direction)                          << "\n"
+       << "  road_ramp:          " << gs(r->misc.road_ramp)                                 << "\n"
+       << "  bridge_segment:     " << gs(r->misc.bridge_segment)                            << "\n";
 }
 
 std::vector<const ServiceRequest*>

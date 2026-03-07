@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <atomic>
 
 struct StringRef
 {
@@ -25,5 +26,5 @@ class StringPool
     private:
         char* buffer_;     
         uint32_t capacity_;
-        uint32_t top_;        
+        std::atomic<uint32_t> top_;        
 };

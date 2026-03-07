@@ -16,16 +16,15 @@ StringPool::~StringPool()
 
 StringRef StringPool::store(const char* str, uint16_t len)
 {
-    if (top_ + len > capacity_) {
-        std::cerr << "StringPool overflow: used=" << top_
+    uint32_t offset = top_.fetch_add(len, std::memory_order_relaxed);
+    if (offset + len > capacity_) {
+        std::cerr << "StringPool overflow: used=" << offset
         << " capacity=" << capacity_ << "\n";
         std::abort();
     }
+    std::memcpy(buffer_ + offset, str, len);
+    return {offset, len};
 
-    StringRef ref{top_, len};
-    std::memcpy(buffer_ + top_, str, len);
-    top_ += len;
-    return ref;
 }
 
 const char* StringPool::get(StringRef ref) const
@@ -34,7 +33,7 @@ const char* StringPool::get(StringRef ref) const
 }
 
 uint32_t StringPool::used() const {
-    return top_;
+    return top_.load();
 }
 
 uint32_t StringPool::capacity() const {

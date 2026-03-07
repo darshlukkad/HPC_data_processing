@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <ostream>
 #include <cstdint>
 
 class DataStore
@@ -26,9 +27,12 @@ public:
 
     size_t size() const { return records_.size(); }
 
+    void printRecord(const ServiceRequest* r, std::ostream& os) const;
+
 private:
     std::vector<ServiceRequest> records_;
     StringPool pool_;
+    StringPool res_pool_;
 
     StringRegistry<uint8_t> agency_reg_;
     StringRegistry<uint8_t> borough_reg_;
@@ -36,6 +40,7 @@ private:
     StringRegistry<uint8_t> status_reg_;
     StringRegistry<uint8_t> channel_type_reg_;
     StringRegistry<uint8_t> park_borough_reg_;
+    StringRegistry<uint8_t> address_type_reg_;
 
     StringRegistry<uint16_t> problem_reg_;
     StringRegistry<uint16_t> problem_detail_reg_;
