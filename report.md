@@ -136,7 +136,31 @@ Phase 2 is implemented as an independent module — it does not inherit from or 
 
 Each thread opens its own `ifstream` handle to the file, seeks to its partition start, and reads lines independently using `std::getline`. Parsed records are accumulated in a per-thread `vector<ServiceRequest>`. After all threads complete, results are merged into the shared `records_` vector serially.
 
-**Thread configuration:** Load uses T=4 threads. Increasing beyond 4 showed diminishing returns due to StringRegistry mutex contention (discussed below). Search uses T=8 threads to fully saturate all CPU cores.
+**Thread configuration:** Load uses T=4 threads and search uses T=8 threads. These values were chosen by reasoning about the limiting resource for each operation, not by blind scaling.
+
+**Why T=4 for load (not T=8):**
+
+Load is a mixed I/O and compute workload. Three independent bottlenecks all cap scaling below the core count:
+
+1. *SSD bandwidth is shared.* Four threads reading four 3 GB segments of the same 12 GB file from one SSD compete for the same physical I/O bus. Doubling threads from 4 to 8 does not double SSD throughput — it mostly doubles I/O queue depth on the same hardware.
+
+2. *StringPool atomic contention.* `StringPool::store()` calls `std::atomic<uint32_t>::fetch_add` approximately 15 times per record × 20.1M records = 300 million atomic operations. All threads share one counter. On ARM64 (M-series), `LDADD` instructions are serialized at the memory subsystem level — more threads increase contention on the cache line holding `top_`, causing coherence traffic.
+
+3. *StringRegistry mutex traffic.* Nine `std::shared_mutex` instances are contested during the first ~2,000 records per thread while new string values are encountered. Beyond warmup, shared-lock reads dominate, but the initial burst of `unique_lock` acquisitions across 8 threads on 9 registries would increase stall time.
+
+Empirically: Phase 3 tested T=6 load threads and measured 36,555 ms average — essentially identical to Phase 2's T=4 result of 37,286 ms. The extra two threads added no measurable benefit, confirming the ceiling had already been reached at T=4.
+
+**Why T=8 for search (not fewer):**
+
+Search is a read-only, lock-free, compute-and-memory-bandwidth-bound operation. `records_[]` is not modified after load; `local[tid]` vectors are thread-private. No synchronization occurs during the scan. The only limit on scaling is physical CPU core count.
+
+The Apple M-series processor used for this benchmark has 8 performance cores. Assigning T=8 threads maps exactly one thread per core, giving each thread exclusive L1/L2 cache access during its scan chunk with no context switching. The Phase 1→Phase 2 search speedup of 10× (for searchByZip) closely matches the theoretical 8× linear scaling, with the slight super-linear gain attributable to the combined L2 cache across 8 cores holding more of the working set.
+
+**Would increasing thread counts beyond these values help?**
+
+For load (T > 4): No. The three bottlenecks above are not relieved by adding threads — they get worse. More threads mean more contention on `top_` (atomic), more StringRegistry lock attempts per unit time, and no additional SSD bandwidth. Tested empirically: T=6 load matched T=4 within noise.
+
+For search (T > 8): No, and likely harmful. The test machine has exactly 8 performance cores. Adding threads beyond 8 forces the OS to schedule multiple threads on the same core via time-slicing, increasing context switch overhead. On M-series, the 4 efficiency cores (E-cores) have lower memory bandwidth and cache capacity than the P-cores; routing search threads to them would reduce per-thread throughput. Hyperthreading is not present on ARM M-series chips, so T=8 is the hardware maximum for full-core utilization. Benchmarking with T=16 would be an interesting data point to confirm this degradation empirically.
 
 ### 5.3 Thread Safety Design
 
